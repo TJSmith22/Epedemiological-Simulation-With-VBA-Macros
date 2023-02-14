@@ -1,0 +1,284 @@
+# Create needed constants and variables
+
+Const numAgents As Integer = 50
+Const numStartInfected As Integer = 5
+Const infectionRadius As Double = 15
+Const minXPosition As Double = -100
+Const maxXPosition As Double = 100
+Const minYPosition As Double = -100
+Const maxYPosition As Double = 100
+Const minXVelocity As Double = -3
+Const maxXVelocity As Double = 3
+Const minYVelocity As Double = -3
+Const maxYVelocity As Double = 3
+
+Dim maxTravelRadius As Double
+Dim transmissionProbability As Double
+Dim infectedTime As Integer
+Dim numRepetitions As Integer
+
+Dim homex(numAgents) As Double
+Dim homey(numAgents) As Double
+Dim px(numAgents) As Double
+Dim py(numAgents) As Double
+Dim vx(numAgents) As Double
+Dim vy(numAgents) As Double
+Dim state(numAgents) As String
+Dim duration(numAgents) As String
+
+# Read from the Simulation worksheet all the data necessary to fill the variables maxTravelRadius,
+transmissionProbability, infectedTime, and numRepetitions.
+
+Sub GetAllInputs()
+    maxTravelRadius = Worksheets("Simulations").Range("C4").Value
+    transmissionProbability = Worksheets("Simulations").Range("C5").Value
+    infectedTime = Worksheets("Simulations").Range("C6").Value
+    numRepetitions = Worksheets("Simulations").Range("C14").Value
+End Sub
+
+
+# Read from the Data worksheet all the data necessary to fill
+# all the variables homex, homey, px, py, vx, vy, state, and duration.
+
+Sub ReadAllData()
+    Dim I As Long
+    For I = 1 To numAgents
+        homex(I) = Worksheets("Data").Range("A2").Offset(I - 1, 0).Value
+        homey(I) = Worksheets("Data").Range("B2").Offset(I - 1, 0).Value
+        px(I) = Worksheets("Data").Range("C2").Offset(I - 1, 0).Value
+        py(I) = Worksheets("Data").Range("D2").Offset(I - 1, 0).Value
+        vx(I) = Worksheets("Data").Range("E2").Offset(I - 1, 0).Value
+        vy(I) = Worksheets("Data").Range("F2").Offset(I - 1, 0).Value
+        state(I) = Worksheets("Data").Range("G2").Offset(I - 1, 0).Value
+        duration(I) = Worksheets("Data").Range("H2").Offset(I - 1, 0).Value
+    Next I
+End Sub
+
+# Write into the Data worksheet all the contents of the variables
+# homex, homey, px, py, vx, vy, state, and duration.
+# Fill columns J, K, M, N, P, and Q in that sheet with just those px and py values that fall into the S, I, and R states, respectively.
+
+Sub WriteAllData()
+    Dim I As Long
+    For I = 1 To numAgents
+        Worksheets("Data").Range("A2").Offset(I - 1, 0).Value = homex(I)
+        Worksheets("Data").Range("B2").Offset(I - 1, 0).Value = homey(I)
+        Worksheets("Data").Range("C2").Offset(I - 1, 0).Value = px(I)
+        Worksheets("Data").Range("D2").Offset(I - 1, 0).Value = py(I)
+        Worksheets("Data").Range("E2").Offset(I - 1, 0).Value = vx(I)
+        Worksheets("Data").Range("F2").Offset(I - 1, 0).Value = vy(I)
+        Worksheets("Data").Range("G2").Offset(I - 1, 0).Value = state(I)
+        Worksheets("Data").Range("H2").Offset(I - 1, 0).Value = duration(I)
+    Next I
+    
+    Worksheets("Data").Range("J2:Q51").Clear
+    
+    Dim S As Integer
+    Dim r As Integer
+    Dim n As Integer
+    Dim Iy As Integer
+    S = 0
+    r = 0
+    n = 0
+    For Iy = 1 To numAgents
+        If Worksheets("Data").Range("G2").Offset(Iy - 1, 0).Value = "S" Then
+            Worksheets("Data").Range("J2").Offset(S, 0).Value = Worksheets("Data").Range("C2").Offset(Iy - 1, 0).Value
+            Worksheets("Data").Range("K2").Offset(S, 0).Value = Worksheets("Data").Range("D2").Offset(Iy - 1, 0).Value
+            S = S + 1
+        ElseIf Worksheets("Data").Range("G2").Offset(Iy - 1, 0).Value = "R" Then
+            Worksheets("Data").Range("P2").Offset(r, 0).Value = Worksheets("Data").Range("C2").Offset(Iy - 1, 0).Value
+            Worksheets("Data").Range("Q2").Offset(r, 0).Value = Worksheets("Data").Range("D2").Offset(Iy - 1, 0).Value
+            r = r + 1
+        ElseIf Worksheets("Data").Range("G2").Offset(Iy - 1, 0).Value = "I" Then
+            Worksheets("Data").Range("M2").Offset(n, 0).Value = Worksheets("Data").Range("C2").Offset(Iy - 1, 0).Value
+            Worksheets("Data").Range("N2").Offset(n, 0).Value = Worksheets("Data").Range("D2").Offset(Iy - 1, 0).Value
+            n = n + 1
+        End If
+    Next Iy
+End Sub
+
+# Fill the variables homex, homey, px, py, vx, and vy with random values in the appropriate ranges.  
+# Fill the state variable with some infected and some susceptible states (respecting numStartInfected).  
+# Fill the duration variable with all zeros. 
+# Call your other Sub to copy that data into the workbook and write data. 
+    
+Sub SetUpAgents()
+    Dim I As Long
+    For I = 1 To numAgents
+        homex(I) = Rnd() * (maxXPosition - minXPosition) + minXPosition
+        homey(I) = Rnd() * (maxYPosition - minYPosition) + minYPosition
+        px(I) = homex(I)
+        py(I) = homey(I)
+        vx(I) = Rnd() * (maxXVelocity - minXVelocity) + minXVelocity
+        vy(I) = Rnd() * (maxYVelocity - minYVelocity) + minYVelocity
+        duration(I) = 0
+    Next I
+    
+    Dim infected As Integer
+    For infected = 1 To numStartInfected
+        state(infected) = "I"
+    Next infected
+    Dim S As Integer
+    For S = numStartInfected + 1 To numAgents
+        state(S) = "S"
+    Next S
+    
+    Call WriteAllData
+End Sub
+
+# Compute the distance between the points (x1,y1) and (x2,y2).
+
+Function Distance(x1 As Double, y1 As Double, x2 As Double, y2 As Double) As Double
+    Distance = Sqr((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
+End Function
+
+
+# Move each agent from its current position to its new position, as given
+# by its current velocity, unless that move would place the agent outside
+# of the simulation area, or too far from its home. 
+# In either of those cases, instead of moving the agent, assign it a new random velocity.
+
+Sub MoveAgents()
+    Dim I As Integer
+    For I = 1 To numAgents
+        If Distance((px(I) + vx(I)), (py(I) + vy(I)), homex(I), homey(I)) <= maxTravelRadius _
+        And minXPosition <= (px(I) + vx(I)) And (px(I) + vx(I)) <= maxXPosition And minYPosition <= (py(I) + vy(I)) _
+        And (py(I) + vy(I)) <= maxYPosition Then
+            px(I) = px(I) + vx(I)
+            py(I) = py(I) + vy(I)
+        Else
+            vx(I) = Rnd() * (maxXVelocity - minXVelocity) + minXVelocity
+            vy(I) = Rnd() * (maxYVelocity - minYVelocity) + minYVelocity
+        End If
+    Next I
+End Sub
+
+# Consider each pair of agents that are close enough to transmit the
+# infection, and where one is infected and the other susceptible.
+# If a randomly generated number in [0,1] is below the transmissionProbability,
+# make the susceptible agent infected and set their duration to zero.
+
+Sub Infect()
+    Dim I As Integer
+    Dim J As Integer
+    For I = 1 To numAgents
+        For J = I + 1 To numAgents
+            If Distance(px(I), py(I), px(J), py(J)) <= infectionRadius Then
+                If state(I) = "I" And state(J) = "S" Then
+                    If Rnd() <= transmissionProbability Then
+                        state(J) = "I"
+                        duration(J) = 0
+                    End If
+                End If
+            End If
+        Next J
+    Next I
+End Sub
+
+# Increase all values in the duration array, to indicate that onemore step of time has passed. 
+# Anyone who is infected and has been in that state for longer than infectedTime switches to the recovered
+# state and have their duration set to zero again.
+    
+Sub Recover()
+    Dim I As Integer
+    For I = 1 To numAgents
+        If duration(I) < infectedTime Then
+            duration(I) = duration(I) + 1
+        ElseIf state(I) = "I" Then
+            state(I) = "R"
+            duration(I) = 0
+        End If
+    Next I
+End Sub
+
+# Get all inputs and data from the worksheet, move all the agents, transmit
+# any necessary disease, affect any necessary recovery, save the data back
+# into the workbook, update the chart and write the data.
+
+Sub StepForward()
+    Call GetAllInputs
+    Call ReadAllData
+    Call MoveAgents
+    Call Infect
+    Call Recover
+    Call WriteAllData
+End Sub
+
+# Compute the proportion of agents who are in the given state.
+# For example, if half the population is recovered, then
+# ProportionInState("R") is 0.5.
+    
+Function ProportionInState(S As String) As Double
+    Call ReadAllData
+    Dim I As Integer
+    Dim total As Integer
+    total = 0
+    For I = 1 To numAgents
+        If state(I) = S Then
+            total = total + 1
+        End If
+    Next I
+    
+    ProportionInState = total / numAgents
+End Function
+
+# Keep going one step forward in the simulation until the disease is gone.
+   
+Sub RunSimulation()
+    While ProportionInState("I") <> 0
+        Call StepForward
+    Wend
+End Sub
+
+# Delete any old repeated simulation results shown on the Simulation sheet.
+# Write entries for all the experiments you're about to do, and for each one,
+put "working..." in the column that will hold its final % Recovered value.
+# Repeat the following loop as many times as the user chose:
+# Set up a fresh simulation, run it, and then store its final % Recovered in
+# the Simulation sheet, in the appropriate row, overwriting one of the cells
+# containing "working..."
+# Add a new row at the end that computes the average % Recovered over all the simulations you just ran.
+    
+Sub RunManySimulations()
+    Call GetAllInputs
+    Worksheets("Simulations").Range("B20:C1000").Clear
+    Dim I As Integer
+    For I = 1 To numRepetitions
+        Worksheets("Simulations").Range("B20").Offset(I - 1, 0).Value = "Run #" & I & " %Recovered:"
+        Worksheets("Simulations").Range("C20").Offset(I - 1, 0).Value = "Working..."
+    Next I
+    
+    For I = 1 To numRepetitions
+        Call SetUpAgents
+        Call RunSimulation
+        Worksheets("Simulations").Range("C20").Offset(I - 1, 0).Value = ProportionInState("R") * 100 & "%"
+    Next I
+    Worksheets("Simulations").Range("B20").Offset(numRepetitions, 0).Value = "Average % Recovered"
+    Worksheets("Simulations").Range("C20").Offset(numRepetitions, 0).Value = WorksheetFunction.Average(Worksheets("Simulations").Range("C20:C" & numRepetitions + 20)) * 100 & "%"
+
+End Sub
+
+# Append to the Experiment Log sheet a new row containing the results of the
+# most recently run simulation, which are shown in the Simulation sheet.
+# Erase them from the simulation sheet and add a comment that they have
+# been copied successfully to the Experiment Log sheet.
+    
+Sub SaveRunsResults()
+    Call GetAllInputs
+    Dim LastRow As Long
+    LastRow = Worksheets("Experiment Log").Cells(Rows.Count, 1).End(xlUp).Row
+    Worksheets("Experiment Log").Range("A" & LastRow + 1).Value = maxTravelRadius
+    Worksheets("Experiment Log").Range("B" & LastRow + 1).Value = transmissionProbability
+    Worksheets("Experiment Log").Range("C" & LastRow + 1).Value = infectedTime
+    Worksheets("Experiment Log").Range("D" & LastRow + 1).Value = numRepetitions
+    Worksheets("Experiment Log").Range("E" & LastRow + 1).Value = Worksheets("Simulations").Range("C" & numRepetitions + 20).Value * 100 & "%"
+    
+    
+    Worksheets("Simulations").Range("C4").Clear
+    Worksheets("Simulations").Range("C5").Clear
+    Worksheets("Simulations").Range("C6").Clear
+    Worksheets("Simulations").Range("C14").Clear
+    Worksheets("Simulations").Range("B20:C1000").Clear
+    Worksheets("Simulations").Range("B20").Value = "None yet-previous results saved"
+    MsgBox "Your simulation has successfully been transferred to the Experiment Log Sheet!", vbOKOnly
+End Sub
